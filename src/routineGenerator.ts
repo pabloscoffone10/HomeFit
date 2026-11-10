@@ -2,8 +2,9 @@ import type { Exercise, Profile, WorkoutExercise } from './types'
 
 export const weekDays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 export const getTrainingDays = (profile: Profile) => {
-  const days = profile.trainingDays?.filter((day) => day >= 0 && day <= 6) ?? [1, 3, 5]
-  return [...new Set(days)].sort((a, b) => a - b).slice(0, Math.max(2, Math.min(6, profile.daysPerWeek ?? days.length)))
+  const count = Math.max(2, Math.min(6, profile.daysPerWeek ?? 3))
+  const days = profile.trainingDays?.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) ?? [1, 3, 5]
+  return [...new Set(days)].sort((a, b) => a - b).slice(0, count)
 }
 
 const goalOrder: Record<Profile['goal'], string[]> = {
@@ -15,7 +16,8 @@ const goalOrder: Record<Profile['goal'], string[]> = {
 
 export function generateRoutineForDay(profile: Profile, catalog: Exercise[], dayIndex = 0): WorkoutExercise[] {
   const avoidWrist = profile.avoidWristExercises ?? /muñec|munec/i.test(profile.limitations)
-  const allowed = catalog.filter((exercise) => exercise.equipment.some((item) => profile.equipment.includes(item)) && (!avoidWrist || !exercise.wristSensitive))
+  const equipment = profile.equipment?.length ? profile.equipment : ['Sin equipamiento']
+  const allowed = catalog.filter((exercise) => exercise.equipment.some((item) => equipment.includes(item)) && (!avoidWrist || !exercise.wristSensitive))
   const order = goalOrder[profile.goal]
   const ranked = [...allowed].sort((a, b) => (order.indexOf(a.category) + (a.level === profile.level ? 0 : 2)) - (order.indexOf(b.category) + (b.level === profile.level ? 0 : 2)))
   const sets = profile.level === 'Inicial' ? 2 : profile.level === 'Intermedio' ? 3 : 4

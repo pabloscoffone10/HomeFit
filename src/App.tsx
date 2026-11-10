@@ -10,14 +10,33 @@ const key = 'homefit-state'
 type WorkoutRecord = { date: string; minutes: number; exercises: number; profileId?: string; status?: 'completed' | 'skipped' | 'scheduled' }
 type AppState = { profiles: Profile[]; activeId: string; workouts: WorkoutRecord[]; water: number }
 const defaultState: AppState = { profiles: [], activeId: '', workouts: [], water: 0 }
-function readState(): AppState { try { return JSON.parse(localStorage.getItem(key) || 'null') || defaultState } catch { return defaultState } }
-function saveState(value: AppState) { localStorage.setItem(key, JSON.stringify(value)) }
+const sessionDurations = [15, 20, 30, 45, 60]
+const weekFrequencies = [2, 3, 4, 5, 6]
+const equipmentOptions: Equipment[] = ['Sin equipamiento', 'Mancuernas', 'Bandas', 'Colchoneta']
+const trainingDays = [1, 2, 3, 4, 5, 6, 0]
+function normalizeProfile(value: Partial<Profile>): Profile | null {
+  if (!value || typeof value.id !== 'string' || typeof value.name !== 'string') return null
+  const daysPerWeek = weekFrequencies.includes(Number(value.daysPerWeek)) ? Number(value.daysPerWeek) : 3
+  const days = Array.isArray(value.trainingDays) ? value.trainingDays.filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6) : [1, 3, 5]
+  const selectedDays = [...new Set(days)].slice(0, daysPerWeek)
+  return { ...value, daysPerWeek, trainingDays: selectedDays.length === daysPerWeek ? selectedDays : trainingDays.slice(0, daysPerWeek), sessionMinutes: sessionDurations.includes(Number(value.sessionMinutes)) ? Number(value.sessionMinutes) : 20, equipment: Array.isArray(value.equipment) && value.equipment.length ? value.equipment.filter((item): item is Equipment => equipmentOptions.includes(item)) : ['Sin equipamiento'], limitations: typeof value.limitations === 'string' ? value.limitations : '', hydration: Boolean(value.hydration) } as Profile
+}
+function readState(): AppState { try { const parsed = JSON.parse(localStorage.getItem(key) || 'null') as Partial<AppState> | null; const profiles = Array.isArray(parsed?.profiles) ? parsed.profiles.map(normalizeProfile).filter((profile): profile is Profile => Boolean(profile)) : []; const activeId = profiles.some((profile) => profile.id === parsed?.activeId) ? String(parsed?.activeId) : profiles[0]?.id || ''; const workouts = Array.isArray(parsed?.workouts) ? parsed.workouts.filter((workout): workout is WorkoutRecord => Boolean(workout && typeof workout.date === 'string' && Number.isFinite(workout.minutes))) : []; return { profiles, activeId, workouts, water: Math.max(0, Math.min(8, Number(parsed?.water) || 0)) } } catch { return defaultState } }
+function saveState(value: AppState) { try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* Storage may be unavailable. */ } }
 
 const nav: { id: Tab; label: string; icon: typeof Home }[] = [{ id: 'Inicio', label: 'Inicio', icon: Home }, { id: 'Entrenamiento', label: 'Entrenamiento', icon: Dumbbell }, { id: 'Ejercicios', label: 'Ejercicios', icon: Activity }, { id: 'Progreso', label: 'Progreso', icon: BarChart3 }, { id: 'Calendario', label: 'Calendario', icon: CalendarDays }, { id: 'Configuración', label: 'Configuración', icon: Settings }]
 
 export default function App() {
   const [state, setState] = useState(readState)
   const [tab, setTab] = useState<Tab>('Inicio')
+  useEffect(() => {
+    if (tab !== 'Configuración') return
+    const durationSelect = document.querySelector('.settings-grid label:nth-child(4) select')
+    durationSelect?.querySelectorAll('option').forEach((option) => {
+      const minutes = option.textContent?.match(/^\d+/)?.[0]
+      if (minutes) option.value = minutes
+    })
+  }, [tab])
   const active = state.profiles.find((p) => p.id === state.activeId)
   const update = (next: AppState) => { setState(next); saveState(next) }
   const addProfile = () => { const name = window.prompt('Nombre del nuevo perfil'); if (!name?.trim()) return; const profile: Profile = { ...active!, id: crypto.randomUUID(), name: name.trim(), createdAt: new Date().toISOString() }; update({ ...state, profiles: [...state.profiles, profile], activeId: profile.id }) }
