@@ -1,0 +1,48 @@
+{
+  "name": "homefit",
+  "version": "1.0.0",
+  "description": "Entrenador personal local para HomeFit",
+  "author": "HomeFit contributors",
+  "license": "MIT",
+  "main": "dist-electron/main.cjs",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "build": "tsc -b && vite build && powershell -NoProfile -Command \"New-Item -ItemType Directory -Force dist-electron | Out-Null; Copy-Item electron/*.cjs dist-electron -Force\"",
+    "dist": "npm run build && electron-builder --win",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.homefit.app",
+    "productName": "HomeFit",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "HomeFit-Setup-${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "concurrently": "^10.0.7",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.7",
+    "wait-on": "^9.5.1"
+  }
+}
